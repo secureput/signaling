@@ -1,0 +1,1 @@
+This is the open-source version of the signaling server devised during the creation of [SecurePut](https://secureput.com/) which is an app that allows for remote input of passwords and other stored text payloads onto Mac, Windows, and Linux computers.
