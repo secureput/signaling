@@ -2,7 +2,6 @@ package secureput
 
 import (
 	"bytes"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -21,7 +20,10 @@ func DumpConfig(appName string) {
 	if err != nil {
 		panic(err)
 	}
-	ioutil.WriteFile(file, buf.Bytes(), 0755)
+	err = os.WriteFile(file, buf.Bytes(), 0755)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func InitConfig(appName string) {
