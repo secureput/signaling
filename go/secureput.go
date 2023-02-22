@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gookit/config/v2"
+	"github.com/gorilla/websocket"
 	"github.com/spf13/afero"
 )
 
@@ -45,6 +46,7 @@ type SecurePut struct {
 	SignalStatusChannel chan int
 	Gui                 IGui
 	DeviceMetadata      map[string]interface{}
+	SignalClient        *websocket.Conn
 }
 
 func Create(appName string) SecurePut {

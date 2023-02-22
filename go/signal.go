@@ -22,7 +22,19 @@ const (
 
 var peerConnection *webrtc.PeerConnection
 
-func (ap *SecurePut) SignalMessageHandler(message *Message, signalClient *websocket.Conn) {
+func (ap *SecurePut) SendIdentity() {
+	ap.SignalClient.WriteJSON(IdentificationMessage{
+		PayloadType: IdentificationType,
+		PayloadContent: IdentificationPayload{
+			Name:        ap.GetName(),
+			DeviceUUID:  ap.Config.DeviceUUID,
+			AccountUUID: ap.Config.AccountUUID,
+			Metadata:    ap.DeviceMetadata,
+		},
+	})
+}
+
+func (ap *SecurePut) SignalMessageHandler(message *Message) {
 
 	switch message.PayloadType {
 	case SessionDescriptionType:
@@ -64,7 +76,7 @@ func (ap *SecurePut) SignalMessageHandler(message *Message, signalClient *websoc
 			panic(err)
 		}
 
-		ap.EncryptingWriteJSON(signalClient, SDPMessage{
+		ap.EncryptingWriteJSON(SDPMessage{
 			PayloadType:    SessionDescriptionType,
 			PayloadContent: *peerConnection.LocalDescription(),
 		})
@@ -121,7 +133,7 @@ func (ap *SecurePut) SignalMessageHandler(message *Message, signalClient *websoc
 			if i != nil {
 				// check(offerPC.AddICECandidate(i.ToJSON()))
 				ic := i.ToJSON()
-				ap.EncryptingWriteJSON(signalClient, ICEMessage{
+				ap.EncryptingWriteJSON(ICEMessage{
 					PayloadType: IceCandidateType,
 					PayloadContent: ICECandidateInit{
 						SDP:           ic.Candidate,
@@ -164,7 +176,7 @@ func (ap *SecurePut) SignalMessageHandler(message *Message, signalClient *websoc
 			log.Println("Received a message that could not be decrypted. Sender does not have the new key.")
 			return
 		}
-		ap.SignalMessageHandler(&msg, signalClient)
+		ap.SignalMessageHandler(&msg)
 	case ClaimType:
 		var claim ClaimPayload
 		if err := json.Unmarshal(message.PayloadContent, &claim); err != nil {
@@ -172,25 +184,18 @@ func (ap *SecurePut) SignalMessageHandler(message *Message, signalClient *websoc
 		}
 		log.Printf("validated a claim from %s\n", claim.AccountUUID)
 		ap.PairChannel <- claim.AccountUUID
-		signalClient.WriteJSON(IdentificationMessage{
-			PayloadType: IdentificationType,
-			PayloadContent: IdentificationPayload{
-				Name:        ap.GetName(),
-				DeviceUUID:  ap.Config.DeviceUUID,
-				AccountUUID: claim.AccountUUID,
-				Metadata:    ap.DeviceMetadata,
-			},
-		})
+		ap.Config.AccountUUID = claim.AccountUUID
+		ap.SendIdentity()
 	default:
 		log.Printf("Whoops. unhandled message type %s\n", message.PayloadType)
 	}
 }
 
-func (ap *SecurePut) EncryptingWriteJSON(c *websocket.Conn, v interface{}) error {
+func (ap *SecurePut) EncryptingWriteJSON(v interface{}) error {
 	msg := ForwardWrappedMessage{}
 	msg.To = ap.Config.AccountUUID
 	msg.Type = ForwardWrappedType
-	w, err := c.NextWriter(websocket.TextMessage)
+	w, err := ap.SignalClient.NextWriter(websocket.TextMessage)
 	if err != nil {
 		return err
 	}
@@ -218,34 +223,24 @@ func (ap *SecurePut) EncryptingWriteJSON(c *websocket.Conn, v interface{}) error
 
 func (ap *SecurePut) Signal() {
 	u := SignalServer
-	var signalClient *websocket.Conn
-	for signalClient == nil {
+	for ap.SignalClient == nil {
 		log.Printf("connecting to %s", u.String())
 		c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 		if err != nil {
 			ap.SignalStatusChannel <- ConnectionTimeout
 			return
 		}
-		signalClient = c
+		ap.SignalClient = c
 		ap.SignalStatusChannel <- Connected
-
-		signalClient.WriteJSON(IdentificationMessage{
-			PayloadType: IdentificationType,
-			PayloadContent: IdentificationPayload{
-				Name:        ap.GetName(),
-				DeviceUUID:  ap.Config.DeviceUUID,
-				AccountUUID: ap.Config.AccountUUID,
-				Metadata:    ap.DeviceMetadata,
-			},
-		})
+		ap.SendIdentity()
 		ap.SignalStatusChannel <- Identified
 	}
 
-	defer signalClient.Close()
+	defer ap.SignalClient.Close()
 
 	for {
 		var message Message
-		if err := signalClient.ReadJSON(&message); err != nil {
+		if err := ap.SignalClient.ReadJSON(&message); err != nil {
 			log.Println("recv error:", err)
 			if websocket.IsCloseError(err) {
 				ap.SignalStatusChannel <- CloseError
@@ -256,6 +251,6 @@ func (ap *SecurePut) Signal() {
 				return
 			}
 		}
-		ap.SignalMessageHandler(&message, signalClient)
+		ap.SignalMessageHandler(&message)
 	}
 }
