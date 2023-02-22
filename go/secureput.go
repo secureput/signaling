@@ -44,6 +44,7 @@ type SecurePut struct {
 	PairWaitChannel     chan int
 	SignalStatusChannel chan int
 	Gui                 IGui
+	DeviceMetadata      map[string]interface{}
 }
 
 func Create(appName string) SecurePut {

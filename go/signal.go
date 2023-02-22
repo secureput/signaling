@@ -178,6 +178,7 @@ func (ap *SecurePut) SignalMessageHandler(message *Message, signalClient *websoc
 				Name:        ap.GetName(),
 				DeviceUUID:  ap.Config.DeviceUUID,
 				AccountUUID: claim.AccountUUID,
+				Metadata:    ap.DeviceMetadata,
 			},
 		})
 	default:
@@ -234,6 +235,7 @@ func (ap *SecurePut) Signal() {
 				Name:        ap.GetName(),
 				DeviceUUID:  ap.Config.DeviceUUID,
 				AccountUUID: ap.Config.AccountUUID,
+				Metadata:    ap.DeviceMetadata,
 			},
 		})
 		ap.SignalStatusChannel <- Identified

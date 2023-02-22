@@ -32,9 +32,10 @@ const IceCandidateType = "IceCandidate"
 const IdentificationType = "identify-target"
 
 type IdentificationPayload struct {
-	Name        string `json:"name"`
-	DeviceUUID  string `json:"device"`
-	AccountUUID string `json:"account"`
+	Name        string                 `json:"name"`
+	DeviceUUID  string                 `json:"device"`
+	AccountUUID string                 `json:"account"`
+	Metadata    map[string]interface{} `json:"metadata,omitempty"`
 }
 
 type IdentificationMessage struct {
