@@ -35,21 +35,25 @@ const (
 )
 
 type SecurePut struct {
+	Name                string
 	OutputMode          int
 	Fs                  afero.Fs
 	Config              AppConfig
 	QRImage             *image.RGBA
 	PairChannel         chan string
+	PairWaitChannel     chan int
 	SignalStatusChannel chan int
 	Gui                 IGui
 }
 
-func Create() SecurePut {
+func Create(appName string) SecurePut {
 	ap := SecurePut{}
+	ap.Name = appName
 	ap.Fs = afero.NewMemMapFs()
 	ap.PairChannel = make(chan string)
+	ap.PairWaitChannel = make(chan int)
 	ap.SignalStatusChannel = make(chan int)
-	InitConfig()
+	InitConfig(ap.Name)
 	ap.Config.AccountUUID = config.String("account")
 	ap.Config.DeviceSecret = config.String("secret")
 	ap.Config.DeviceUUID = config.String("uuid")
@@ -83,7 +87,7 @@ func (ap *SecurePut) GenPairInfo() {
 
 func (ap *SecurePut) ClearPairing() {
 	config.Set("account", "")
-	DumpConfig()
+	DumpConfig(ap.Name)
 	ap.Config.AccountUUID = config.String("account")
 	ap.Gui.Changed()
 }
@@ -111,7 +115,8 @@ func (ap *SecurePut) RunDaemonMode() {
 			ap.Config.AccountUUID = account
 			ap.Gui.Changed()
 			config.Set("account", account)
-			DumpConfig()
+			DumpConfig(ap.Name)
+			ap.PairWaitChannel <- 1
 		case status = <-ap.SignalStatusChannel:
 			log.Println("Status info")
 			switch status {

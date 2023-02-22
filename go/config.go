@@ -12,8 +12,8 @@ import (
 	"github.com/gookit/config/v2/yamlv3"
 )
 
-func DumpConfig() {
-	file := filepath.Join(appConfigDir(), "prefs.yml")
+func DumpConfig(appName string) {
+	file := filepath.Join(appConfigDir(appName), "prefs.yml")
 	ensureDir(file)
 
 	buf := new(bytes.Buffer)
@@ -24,8 +24,8 @@ func DumpConfig() {
 	ioutil.WriteFile(file, buf.Bytes(), 0755)
 }
 
-func InitConfig() {
-	file := filepath.Join(appConfigDir(), "prefs.yml")
+func InitConfig(appName string) {
+	file := filepath.Join(appConfigDir(appName), "prefs.yml")
 	if _, serr := os.Stat(file); serr != nil {
 		if os.IsNotExist(serr) {
 			ensureDir(file)
@@ -63,8 +63,8 @@ func rootConfigDir() string {
 	return ""
 }
 
-func appConfigDir() string {
-	return filepath.Join(rootConfigDir(), "SecurePut")
+func appConfigDir(appName string) string {
+	return filepath.Join(rootConfigDir(), appName)
 }
 
 func ensureDir(fileName string) {

@@ -19,7 +19,7 @@ func (app *SecurePut) GenerateNewPairingQR(width uint8) {
 
 	app.Config.DeviceSecret = pairing.SecretKey
 	config.Set("secret", pairing.SecretKey)
-	DumpConfig()
+	DumpConfig(app.Name)
 
 	qrContent, err := json.Marshal(pairing)
 	if err != nil {
