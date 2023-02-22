@@ -90,16 +90,6 @@ func (ap *SecurePut) SignalMessageHandler(message *Message) {
 
 		log.Println("sent a reply")
 
-		if ap.OnICEConnectionStateChange != nil {
-			peerConnection.OnICEConnectionStateChange(ap.OnICEConnectionStateChange)
-		} else {
-			// Set the handler for ICE connection state
-			// This will notify you when the peer has connected/disconnected
-			peerConnection.OnICEConnectionStateChange(func(connectionState webrtc.ICEConnectionState) {
-				log.Printf("ICE Connection State has changed: %s\n", connectionState.String())
-			})
-		}
-
 		peerConnection.OnDataChannel(func(d *webrtc.DataChannel) {
 			d.OnOpen(func() {
 				log.Println("peerconn data channel open")

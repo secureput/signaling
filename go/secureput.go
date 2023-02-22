@@ -37,20 +37,19 @@ const (
 )
 
 type SecurePut struct {
-	Name                       string
-	OutputMode                 int
-	Fs                         afero.Fs
-	Config                     AppConfig
-	QRImage                    *image.RGBA
-	PairChannel                chan string
-	PairWaitChannel            chan int
-	SignalStatusChannel        chan int
-	Gui                        IGui
-	DeviceMetadata             map[string]interface{}
-	SignalClient               *websocket.Conn
-	OnPeerConnectionCreated    func(*webrtc.PeerConnection)
-	OnPeerConnectionClosed     func()
-	OnICEConnectionStateChange func(connectionState webrtc.ICEConnectionState)
+	Name                    string
+	OutputMode              int
+	Fs                      afero.Fs
+	Config                  AppConfig
+	QRImage                 *image.RGBA
+	PairChannel             chan string
+	PairWaitChannel         chan int
+	SignalStatusChannel     chan int
+	Gui                     IGui
+	DeviceMetadata          map[string]interface{}
+	SignalClient            *websocket.Conn
+	OnPeerConnectionCreated func(*webrtc.PeerConnection)
+	OnPeerConnectionClosed  func()
 }
 
 func Create(appName string) SecurePut {
