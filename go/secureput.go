@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gookit/config/v2"
 	"github.com/gorilla/websocket"
+	"github.com/pion/webrtc/v3"
 	"github.com/spf13/afero"
 )
 
@@ -36,17 +37,20 @@ const (
 )
 
 type SecurePut struct {
-	Name                string
-	OutputMode          int
-	Fs                  afero.Fs
-	Config              AppConfig
-	QRImage             *image.RGBA
-	PairChannel         chan string
-	PairWaitChannel     chan int
-	SignalStatusChannel chan int
-	Gui                 IGui
-	DeviceMetadata      map[string]interface{}
-	SignalClient        *websocket.Conn
+	Name                       string
+	OutputMode                 int
+	Fs                         afero.Fs
+	Config                     AppConfig
+	QRImage                    *image.RGBA
+	PairChannel                chan string
+	PairWaitChannel            chan int
+	SignalStatusChannel        chan int
+	Gui                        IGui
+	DeviceMetadata             map[string]interface{}
+	SignalClient               *websocket.Conn
+	OnPeerConnectionCreated    func(*webrtc.PeerConnection)
+	OnPeerConnectionClosed     func()
+	OnICEConnectionStateChange func(connectionState webrtc.ICEConnectionState)
 }
 
 func Create(appName string) SecurePut {

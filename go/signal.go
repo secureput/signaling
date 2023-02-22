@@ -42,6 +42,9 @@ func (ap *SecurePut) SignalMessageHandler(message *Message) {
 
 		if peerConnection != nil {
 			peerConnection.Close()
+			if ap.OnPeerConnectionClosed != nil {
+				ap.OnPeerConnectionClosed()
+			}
 			peerConnection = nil
 		}
 
@@ -57,6 +60,10 @@ func (ap *SecurePut) SignalMessageHandler(message *Message) {
 		if peerConnection, err = webrtc.NewPeerConnection(webrtcConfig); err != nil {
 			log.Println("new peer connection -> error:", err)
 			return
+		}
+
+		if ap.OnPeerConnectionCreated != nil {
+			ap.OnPeerConnectionCreated(peerConnection)
 		}
 
 		var offer webrtc.SessionDescription
@@ -83,11 +90,15 @@ func (ap *SecurePut) SignalMessageHandler(message *Message) {
 
 		log.Println("sent a reply")
 
-		// Set the handler for ICE connection state
-		// This will notify you when the peer has connected/disconnected
-		peerConnection.OnICEConnectionStateChange(func(connectionState webrtc.ICEConnectionState) {
-			log.Printf("ICE Connection State has changed: %s\n", connectionState.String())
-		})
+		if ap.OnICEConnectionStateChange != nil {
+			peerConnection.OnICEConnectionStateChange(ap.OnICEConnectionStateChange)
+		} else {
+			// Set the handler for ICE connection state
+			// This will notify you when the peer has connected/disconnected
+			peerConnection.OnICEConnectionStateChange(func(connectionState webrtc.ICEConnectionState) {
+				log.Printf("ICE Connection State has changed: %s\n", connectionState.String())
+			})
+		}
 
 		peerConnection.OnDataChannel(func(d *webrtc.DataChannel) {
 			d.OnOpen(func() {
