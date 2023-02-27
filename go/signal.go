@@ -125,7 +125,11 @@ func (ap *SecurePut) SignalMessageHandler(message *Message) {
 						log.Println("unexpected unwrapped message on data channel")
 					}
 				default:
-					log.Println("unexpected message on data channel")
+					if ap.OnMessage != nil {
+						ap.OnMessage(message)
+					} else {
+						log.Println("unexpected message on data channel")
+					}
 				}
 			})
 		})

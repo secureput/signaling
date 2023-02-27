@@ -50,6 +50,7 @@ type SecurePut struct {
 	SignalClient            *websocket.Conn
 	OnPeerConnectionCreated func(*webrtc.PeerConnection)
 	OnPeerConnectionClosed  func()
+	OnMessage               func(msg Message)
 }
 
 func Create(appName string) SecurePut {
