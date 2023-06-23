@@ -7,9 +7,10 @@ from . import aes
 from .app import App
 
 class SecureputSignaling(WebsocketSignaling):
-    def __init__(self, server):
+    def __init__(self, server, metadata={}):
         super().__init__(server)
         self._app = App()
+        self.metadata = metadata
         
         if not self._app.paired():
             self._app.gen_pair_info()
@@ -93,9 +94,7 @@ class SecureputSignaling(WebsocketSignaling):
                 "name": self._app.config["deviceName"],
                 "device": self._app.config["deviceUUID"],
                 "account": self._app.config["accountUUID"],
-                "metadata": {
-                    "isRobot": True
-                }
+                "metadata": self.metadata
             }
         }))
 
