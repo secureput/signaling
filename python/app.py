@@ -6,8 +6,8 @@ import pyqrcode
 from .secret import generate_secret_key
 
 class App:
-    def __init__(self):  
-        self.config = shelve.open("secureput_identity.shelve")
+    def __init__(self, identity_file):  
+        self.config = shelve.open(identity_file)
         self.__init_config_default("deviceName",  lambda: gethostname())
         self.__init_config_default("deviceUUID",  lambda: str(uuid4()))
         self.__init_config_default("accountUUID",  lambda: None)
@@ -30,7 +30,7 @@ class App:
         print(url.terminal(quiet_zone=1))
 
 if __name__ == "__main__":
-    app = App()
+    app = App("secureput_identity.shelve")
     print(app.config["deviceName"])
     print(app.config["deviceUUID"])
     print(app.gen_pair_info())
