@@ -7,9 +7,9 @@ from . import aes
 from .app import App
 
 class SecureputSignaling(WebsocketSignaling):
-    def __init__(self, server, identity_file, metadata={}):
+    def __init__(self, server, identity_file, name, metadata={}):
         super().__init__(server)
-        self._app = App(identity_file)
+        self._app = App(identity_file, name)
         self.metadata = metadata
         
         if not self._app.paired():
