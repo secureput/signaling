@@ -9,18 +9,18 @@ class WebsocketSignaling:
     def __init__(self, server):
         self._server = server
         self._websocket = None
-        self._reconnect_attempts = 0
 
     async def connect(self):
-        while self._reconnect_attempts < 5:
+        self._websocket = None
+        while self._websocket == None:
             try:
+                print("Connecting websocket...")
                 self._websocket = await websockets.connect(self._server)
-                self._reconnect_attempts = 0 # reset attempts on success
                 return
             except (ConnectionClosedError, OSError) as e:
-                self._reconnect_attempts += 1
-                wait_time = min(2 ** self._reconnect_attempts, 30)
-                await asyncio.sleep(wait_time)
+                print("Websocket connection error, retrying soon", e)
+                await asyncio.sleep(1)
+        print("Websocket connected")
 
     async def close(self):
         if self._websocket is not None and self._websocket.open is True:
