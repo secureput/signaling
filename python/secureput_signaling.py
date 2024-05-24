@@ -5,6 +5,8 @@ import json
 from .websocket_signaling import WebsocketSignaling
 from . import aes
 from .app import App
+from asyncio.exceptions import IncompleteReadError
+from websockets.exceptions import ConnectionClosedError
 
 class SecureputSignaling(WebsocketSignaling):
     def __init__(self, server, identity_file, name, metadata={}):
@@ -65,9 +67,13 @@ class SecureputSignaling(WebsocketSignaling):
         await self._websocket.send(data + '\n')
 
     async def receive(self):
+        data = None
         try:
             data = await self._websocket.recv()
-        except asyncio.IncompleteReadError:
+        except (ConnectionClosedError, IncompleteReadError) as e:
+            await self.connect()
+            return
+        if data == None:
             return
         ret = self.__object_from_string(data)
         if ret == None:

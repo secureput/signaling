@@ -2,6 +2,8 @@ import asyncio
 import websockets
 
 from aiortc.contrib.signaling import object_from_string, object_to_string
+from asyncio.exceptions import IncompleteReadError
+from websockets.exceptions import ConnectionClosedError
 
 class WebsocketSignaling:
     def __init__(self, server):
@@ -9,7 +11,16 @@ class WebsocketSignaling:
         self._websocket = None
 
     async def connect(self):
-        self._websocket = await websockets.connect(self._server)
+        self._websocket = None
+        while self._websocket == None:
+            try:
+                print("Connecting websocket...")
+                self._websocket = await websockets.connect(self._server)
+                return
+            except (ConnectionClosedError, OSError) as e:
+                print("Websocket connection error, retrying soon", e)
+                await asyncio.sleep(1)
+        print("Websocket connected")
 
     async def close(self):
         if self._websocket is not None and self._websocket.open is True:
@@ -19,14 +30,14 @@ class WebsocketSignaling:
     async def receive(self):
         try:
             data = await self._websocket.recv()
-        except asyncio.IncompleteReadError:
-            return
-        ret = object_from_string(data)
-        if ret == None:
-            print("remote host says good bye!")
-
-        return ret
+            return object_from_string(data)
+        except (ConnectionClosedError, IncompleteReadError) as e:
+            self.connect()
+            return None
 
     async def send(self, descr):
         data = object_to_string(descr)
-        await self._websocket.send(data + '\n')
+        try:
+            await self._websocket.send(data + '\n')
+        except ConnectionClosedError:
+            await self.connect()
