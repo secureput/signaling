@@ -7,6 +7,7 @@ from .secret import generate_secret_key
 
 class App:
     def __init__(self, identity_file, name):  
+        self.name = name
         self.config = shelve.open(identity_file)
         self.__init_config_default("deviceName",  lambda: name)
         self.__init_config_default("deviceUUID",  lambda: str(uuid4()))
@@ -27,6 +28,7 @@ class App:
         pairing["uuid"] = self.config["deviceUUID"]
         self.config["deviceSecret"] = pairing["secret"]
         url = pyqrcode.create(json.dumps(pairing))
+        url.png(self.name+'.png', scale=5)
         print(url.terminal(quiet_zone=1))
 
 if __name__ == "__main__":

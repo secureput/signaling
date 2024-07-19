@@ -2,80 +2,46 @@ import asyncio
 from aiortc.contrib.signaling import RTCSessionDescription, RTCIceCandidate, candidate_from_sdp, candidate_to_sdp
 import json
 
-from .websocket_signaling import WebsocketSignaling
 from . import aes
 from .app import App
-from asyncio.exceptions import IncompleteReadError
-from websockets.exceptions import ConnectionClosedError
+from socketio import AsyncClient
+from socketio.exceptions import TimeoutError, ConnectionError
 
-class SecureputSignaling(WebsocketSignaling):
+class SecureputSignaling():
+    _sio = AsyncClient()
+    _connected = False
+    _handle_signal = None
+
     def __init__(self, server, identity_file, name, metadata={}):
-        super().__init__(server)
         self._app = App(identity_file, name)
-        self.metadata = metadata
-        
-        if not self._app.paired():
-            self._app.gen_pair_info()
+        self._server = server
+        self._metadata = metadata
+        self._sio.on('message', self.on_message)
+        self._sio.on('connect', self.on_connect)
+        self._sio.on('connect_error', self.on_connect_error)
+        self._sio.on('disconnect', self.on_disconnect)
 
-    async def connect(self):
-        await super().connect()
+    def set_signaling_handler(self, handler):
+        self._handle_signal = handler
+
+    async def on_connect(self):
+        print("I'm connected!")
         await self.sendIdentity()
 
-    async def close(self):
-        if self._websocket is not None and self._websocket.open is True:
-            await self._websocket.close()
+    def on_connect_error(self, data):
+        print("The connection failed!")
 
-    def secret(self):
-        return self._app.config["deviceSecret"]
+    def on_disconnect(self):
+        print("I'm disconnected!")
 
-    def encrypt(self, data):
-        return aes.encrypt(self.secret(), data)
+    async def on_message(self, data):
+        print("received message", data)
+        obj = await self.parse_message(data)
+        if self._handle_signal:
+            await self._handle_signal(obj)
 
-    def decrypt(self, data):
-        return aes.decrypt(self.secret(), data)
-
-    def __object_from_string(self, message_str):
-        message = json.loads(message_str)
-
-        if message["type"] == "wrapped":
-            message = json.loads(self.decrypt(message["payload"]["data"]))
-
-        return message
-
-    def __object_to_string(self, obj):
-        if isinstance(obj, RTCSessionDescription):
-            message = self.forwardWrap({
-                "type": "SessionDescription",
-                "payload": {"sdp": obj.sdp, "type": obj.type}
-            })
-        elif isinstance(obj, RTCIceCandidate):
-            message = self.forwardWrap({
-                "type": "IceCandidate",
-                "payload": {
-                    "sdp": "candidate:" + candidate_to_sdp(obj),
-                    "sdpMid": obj.sdpMid,
-                    "sdpMLineIndex": obj.sdpMLineIndex,
-                }
-            })
-        else:
-            message = obj
-
-        return json.dumps(message, sort_keys=True)
-
-    async def send(self, descr):
-        data = self.__object_to_string(descr)
-        await self._websocket.send(data + '\n')
-
-    async def receive(self):
-        data = None
-        try:
-            data = await self._websocket.recv()
-        except (ConnectionClosedError, IncompleteReadError) as e:
-            await self.connect()
-            return
-        if data == None:
-            return
-        ret = self.__object_from_string(data)
+    async def parse_message(self, data):
+        ret = self.json_to_object(data)
         if ret == None:
             print("remote host says good bye!")
         elif isinstance(ret, dict):
@@ -93,14 +59,61 @@ class SecureputSignaling(WebsocketSignaling):
                     return candidate
         return ret
 
+    async def connect(self):
+        while self._connected == False:
+            try:
+                await self._sio.connect(self._server)
+                self._connected = True
+                if not self._app.paired():
+                    self._app.gen_pair_info()
+                await self._sio.wait()
+            except ConnectionError:
+                print("connection error")
+                await asyncio.sleep(1)
+
+    def decrypt(self, data):
+        return aes.decrypt(self._app.config["deviceSecret"], data)
+
+    def json_to_object(self, message_str):
+        message = json.loads(message_str)
+
+        if message["type"] == "wrapped":
+            message = json.loads(aes.decrypt(self._app.config["deviceSecret"], message["payload"]["data"]))
+
+        return message
+
+    def object_to_json(self, obj):
+        if isinstance(obj, RTCSessionDescription):
+            message = self.forwardWrap({
+                "type": "SessionDescription",
+                "payload": {"sdp": obj.sdp, "type": obj.type}
+            })
+        elif isinstance(obj, RTCIceCandidate):
+            message = self.forwardWrap({
+                "type": "IceCandidate",
+                "payload": {
+                    "sdp": "candidate:" + candidate_to_sdp(obj),
+                    "sdpMid": obj.sdpMid,
+                    "sdpMLineIndex": obj.sdpMLineIndex,
+                }
+            })
+        else:
+            message = obj
+
+        return message
+
+    async def send(self, descr):
+        data = self.object_to_json(descr)
+        await self._sio.emit('message', data)
+
     async def sendIdentity(self):
-        await self._websocket.send(json.dumps({
+        await self.send(json.dumps({
             "type": "identify-target",
             "payload": {
                 "name": self._app.config["deviceName"],
                 "device": self._app.config["deviceUUID"],
                 "account": self._app.config["accountUUID"],
-                "metadata": self.metadata
+                "metadata": self._metadata
             }
         }))
 
@@ -115,7 +128,7 @@ class SecureputSignaling(WebsocketSignaling):
             'type': 'forward-wrapped',
         }
         # Encrypt the plaintext
-        ciphertext = self.encrypt(json.dumps(json_data))
+        ciphertext = aes.encrypt(self._app.config["deviceSecret"], json.dumps(json_data))
         
         # Install the ciphertext into the payload
         msg['body'] = ciphertext
