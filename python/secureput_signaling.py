@@ -62,13 +62,14 @@ class SecureputSignaling():
     async def connect(self):
         while self._connected == False:
             try:
+                print("connecting to %s" % self._server)
                 await self._sio.connect(self._server)
                 self._connected = True
                 if not self._app.paired():
                     self._app.gen_pair_info()
                 await self._sio.wait()
-            except ConnectionError:
-                print("connection error")
+            except ConnectionError as e:
+                print("connection error", e)
                 await asyncio.sleep(1)
 
     def decrypt(self, data):
