@@ -9,7 +9,6 @@ from socketio.exceptions import TimeoutError, ConnectionError
 
 class SecureputSignaling():
     _sio = AsyncClient()
-    _connected = False
     _handle_signal = None
 
     def __init__(self, server, identity_file, name, metadata={}):
@@ -26,6 +25,8 @@ class SecureputSignaling():
 
     async def on_connect(self):
         print("I'm connected!")
+        if not self._app.paired():
+            self._app.gen_pair_info()
         await self.sendIdentity()
 
     def on_connect_error(self, data):
@@ -59,18 +60,17 @@ class SecureputSignaling():
                     return candidate
         return ret
 
-    async def connect(self):
-        while self._connected == False:
+    async def start(self):
+        while True:
             try:
                 print("connecting to %s" % self._server)
                 await self._sio.connect(self._server)
-                self._connected = True
-                if not self._app.paired():
-                    self._app.gen_pair_info()
                 await self._sio.wait()
+                print("socketio wait() released")
             except ConnectionError as e:
                 print("connection error", e)
-                await asyncio.sleep(1)
+            finally:
+                await asyncio.sleep(2)
 
     def decrypt(self, data):
         return aes.decrypt(self._app.config["deviceSecret"], data)
